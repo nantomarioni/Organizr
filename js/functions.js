@@ -11512,7 +11512,7 @@ function selectBlackberryTheme(theme, target){
 			$.each(data, function(i,v) {
 				v.name = v.name.split('.')[0];
 				v.name = cleanClass(v.name);
-				icons += `<a href="javascript:swal.close();$('#${target}').val('${v.download_url}')"><img alt="${v.name}" data-toggle="tooltip" data-placement="top" title="" data-original-title="${v.name}"src="${v.download_url}" ></a>`;
+				icons += `<a href="#" onclick="javascript:swal.close();$('#${target}').val('${v.download_url}')"><img alt="${v.name}" data-toggle="tooltip" data-placement="top" title="" data-original-title="${v.name}"src="${v.download_url}" ></a>`;
 			});
 			icons = `<div id="gallery-content-center">${icons}</div>`;
 			let html = `
