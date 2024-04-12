@@ -174,7 +174,7 @@ class Bookmark extends Organizr
 				</div>
 				<div class="BOOKMARK-category-content">';
 			foreach ($tabs as $tab) {
-				$bookmarks .= '<a href="' . $tab['url'] . '" target="_SELF">
+				$bookmarks .= '<a href="' . $tab['url'] . '" target="_BLANK">
 					<div class="BOOKMARK-tab"
 						style="border-color: ' . $this->adjustBrightness($tab['background_color'], 0.3) . '; background: linear-gradient(90deg, ' . $this->adjustBrightness($tab['background_color'], -0.3) . ' 0%, ' . $tab['background_color'] . ' 70%, ' . $this->adjustBrightness($tab['background_color'], 0.1) . ' 100%);">
 						<span class="BOOKMARK-tab-image">' . $this->_iconPrefix($tab['image']) . '</span>
