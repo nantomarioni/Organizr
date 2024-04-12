@@ -635,5 +635,12 @@
     "new": "added autobrr tab image|added base config|added check for file upload to see if upload was successful before mime check|added check on sonarr if url is not set (#1943)|added config item disableHomepageModals|added extension checks for mbstring and fileinfo|added function revokeTokensByUserId|added js to render homepage item|added kuma data route|added latency to monitors|added Navidrome logo|added settings page for kuma|Added setting to toggle compact mode|added socksDebug and maxSocksDebugSize config values|added TODO comment|added toggle for displaying latency|Added uptime kuma homepage item",
     "fixed": "fixed A removed user can still use organizr until they logout (#1925)|fix homepage item name to remove space|set limit to log debugger for socks output - fixes Radarr etc",
     "notes": "cleanup image error|formatting|Move autobrr image to correct dir|move parsing logic into a class|pop latency in the monitors array|turn off the update available notification (#1938)|updated socks to reflect big requests|update kuma function to get and parse prometheus metrics"
+  },
+  "2.1.2490": {
+    "date": "2024-04-12 20:41",
+    "title": "Weekly Update",
+    "new": "Added iframe allow options|Added images for: pigallery, whisparr, stash, tachidesk sorayomi and romm|Adding Korean Support.|Korean language added in 'V2 develop'",
+    "fixed": "fix bookmarks opening in self|fix icon issue on firefox|Several bugs have been fixed. Several new translations have been added.|[PHP 8.4] Fix: Curl `CURLOPT_BINARYTRANSFER` deprecated",
+    "notes": "Create ko[Korean].json|Update es[Spanish].json|Update ko[Korean].json|Update ru[Russian].json|Updating UniFi logo"
   }
 }
