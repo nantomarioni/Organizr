@@ -119,6 +119,9 @@ The optional parameters and GID and UID are described in the [readme](https://gi
 <table>
   <tbody>
     <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://tronflix.app"><img src="https://avatars.githubusercontent.com/u/22502007?v=4?s=100" width="100px;" alt="Chris Yocum"/><br /><sub><b>Chris Yocum</b></sub></a><br /><a href="#test-tronyx" title="Tests">⚠️</a></td>
+    </tr>
+    <tr>
       <td align="center" valign="top" width="14.28%"><a href="http://roxedus.dev"><img src="https://avatars.githubusercontent.com/u/7110194?v=4?s=100" width="100px;" alt="Roxedus"/><br /><sub><b>Roxedus</b></sub></a><br /><a href="#test-Roxedus" title="Tests">⚠️</a></td>
     </tr>
   </tbody>
