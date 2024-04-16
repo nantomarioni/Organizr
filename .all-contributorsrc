@@ -1,4 +1,21 @@
 {
   "projectName": "Organizr",
-  "projectOwner": "causefx"
+  "projectOwner": "causefx",
+  "files": [
+    "README.md"
+  ],
+  "commitType": "docs",
+  "commitConvention": "angular",
+  "contributorsPerLine": 7,
+  "contributors": [
+    {
+      "login": "Roxedus",
+      "name": "Roxedus",
+      "avatar_url": "https://avatars.githubusercontent.com/u/7110194?v=4",
+      "profile": "http://roxedus.dev",
+      "contributions": [
+        "test"
+      ]
+    }
+  ]
 }
