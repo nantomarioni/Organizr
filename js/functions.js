@@ -11952,7 +11952,16 @@ function showPlexMachineForm(selector = null){
 		})
 	);
 }
-function oAuthLoginNeededCheck() {
+function bypassLocalLogin() {
+
+	if(activeInfo.settings.user.bypass !== true){
+		return false;
+	}
+	console.log('run test')
+	OAuthLoginNeeded = true;
+	oAuthLoginNeededCheck('Bypass');
+}
+function oAuthLoginNeededCheck(type = "OAuth") {
     if(OAuthLoginNeeded == false){
         return false;
     }else{
@@ -11960,8 +11969,15 @@ function oAuthLoginNeededCheck() {
             return false;
         }
     }
-    message('OAuth', ' Proceeding to login', activeInfo.settings.notifications.position, '#FFF', 'info', '10000');
-    organizrAPI2('POST', 'api/v2/login', '').success(function (data) {
+	let data = '';
+	if(type === 'Bypass'){
+		const bypass = $.urlParam('bypassDisable');
+		if(bypass){
+			data = 'bypass';
+		}
+	}
+    message(type, ' Proceeding to login', activeInfo.settings.notifications.position, '#FFF', 'info', '10000');
+    organizrAPI2('POST', 'api/v2/login', data).success(function (data) {
 	    local('set','message','Welcome|Login Successful|success');
 	    local('r','loggingIn');
 	    location.reload();
@@ -12505,6 +12521,7 @@ function launch(){
 	        }
 	        console.info("%c Organizr %c ".concat("DOM Fully loaded", " "), "color: white; background: #AD80FD; font-weight: 700;", "color: #AD80FD; background: white; font-weight: 700;");
 	        oAuthLoginNeededCheck();
+			bypassLocalLogin();
         } catch (e) {
             orgErrorCode(data);
             defineNotification();

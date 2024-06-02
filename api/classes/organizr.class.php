@@ -92,6 +92,7 @@ class Organizr
 	public $paths;
 	public $checkForUpdates;
 	public $groupOptions;
+	public $userOptions;
 	public $warnings;
 	public $errors;
 	public bool $loggerSetup = false;
@@ -2458,6 +2459,8 @@ class Organizr
 				$this->settingsOption('switch', 'enableLocalAddressForward', ['label' => 'Enable Local Address Forward', 'help' => 'Enables the local address forward if on local address and accessed from WAN Domain']),
 				$this->settingsOption('switch', 'disableRecoverPass', ['label' => 'Disable Recover Password', 'help' => 'Disables recover password area']),
 				$this->settingsOption('input', 'customForgotPassText', ['label' => 'Custom Recover Password Text', 'help' => 'Text or HTML for recovery password section']),
+				$this->settingsOption('switch', 'bypassLoginForLocal', ['label' => 'Bypass Login For Local Access', 'help' => 'Disables login and logs user in with default User Id']),
+				$this->settingsOption('orguser', 'localLoginUserId', ['label' => 'Local User Id', 'help' => 'User Id to login the user when bypassing login']),
 			],
 			'Auth Proxy' => [
 				$this->settingsOption('switch', 'authProxyEnabled', ['label' => 'Auth Proxy', 'help' => 'Enable option to set Auth Proxy Header Login']),
@@ -3673,6 +3676,19 @@ class Organizr
 
 	public function login($array)
 	{
+		// Bypass Check
+		$bypassLogin = $this->config['bypassLoginForLocal'] && $this->config['localLoginUserId'] && $this->isLocal() == true;
+		if(gettype($array) == 'array'){
+			if(key_exists('bypass', $array)){
+				$bypassLogin = false;
+			}
+			if(key_exists('username', $array)){
+				$bypassLogin = false;
+			}
+			if(key_exists('oAuth', $array)){
+				$bypassLogin = false;
+			}
+		}
 		// Grab username, Password & other optional items from api call
 		$username = $array['username'] ?? null;
 		$password = $array['password'] ?? null;
@@ -3722,7 +3738,7 @@ class Organizr
 			}
 		}
 		// Check if Login method was an oAuth login
-		if (!$oAuth) {
+		if (!$oAuth && !$bypassLogin) {
 			$result = $this->getUserByUsernameAndEmail($username, $username);
 			$result['password'] = $result['password'] ?? '';
 			// Switch AuthType - internal - external - both
@@ -3748,6 +3764,10 @@ class Organizr
 					}
 			}
 			$authSuccess = ($authProxy) ? $addEmailToAuthProxy : $authSuccess;
+		} elseif ($bypassLogin){
+			$id = $this->config['localLoginUserId'];
+			$result = $this->getUserById($id);
+			$authSuccess = true;
 		} else {
 			// Has oAuth Token!
 			switch ($oAuthType) {
@@ -3794,7 +3814,7 @@ class Organizr
 			}
 			if ($userExists) {
 				//does org password need to be updated
-				if (!$passwordMatches) {
+				if (!$passwordMatches && $password) {
 					$this->updateUserPassword($password, $result['id']);
 					$this->setLoggerChannel('Authentication', $username);
 					$this->logger->info('User Password updated from backend');
@@ -4409,7 +4429,8 @@ class Organizr
 				'agent' => isset($_SERVER ['HTTP_USER_AGENT']) ? $_SERVER ['HTTP_USER_AGENT'] : null,
 				'oAuthLogin' => isset($_COOKIE['oAuth']),
 				'local' => $this->isLocal(),
-				'ip' => $this->userIP()
+				'ip' => $this->userIP(),
+				'bypass' => $this->config['bypassLoginForLocal'] && $this->config['localLoginUserId'] && $this->isLocal() == true
 			],
 			'login' => [
 				'rememberMe' => $this->config['rememberMe'],
@@ -4798,6 +4819,11 @@ class Organizr
 	public function setGroupOptionsVariable()
 	{
 		$this->groupOptions = $this->groupSelect();
+	}
+
+	public function setUserOptionsVariable()
+	{
+		$this->userOptions = $this->userSelect();
 	}
 
 	public function getSettingsHomepageItem($item)

@@ -709,5 +709,7 @@ return [
 	'homepageUptimeKumaShowLatency' => true,
 	'checkForUpdate' => true,
 	'socksDebug' => false,
-	'maxSocksDebugSize' => 100
+	'maxSocksDebugSize' => 100,
+	'bypassLoginForLocal' => false,
+	'localLoginUserId' => "1"
 ];
