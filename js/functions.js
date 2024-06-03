@@ -11957,7 +11957,10 @@ function bypassLocalLogin() {
 	if(activeInfo.settings.user.bypass !== true){
 		return false;
 	}
-	console.log('run test')
+	const bypass = $.urlParam('bypassDisable');
+	if(bypass){
+		return false;
+	}
 	OAuthLoginNeeded = true;
 	oAuthLoginNeededCheck('Bypass');
 }
