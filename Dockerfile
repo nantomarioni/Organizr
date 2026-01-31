@@ -69,6 +69,7 @@ COPY --from=vendor /app/api/vendor /var/www/html/api/vendor
 
 # Copy Entrypoint
 COPY root/entrypoint.sh /entrypoint.sh
+COPY root/declarative-config.php /root/declarative-config.php
 RUN chmod +x /entrypoint.sh
 
 # Environment variables

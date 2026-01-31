@@ -225,14 +225,18 @@ trait LogFunctions
 			if ($this->loggerSetup) {
 				if ($channel) {
 					if (strtolower($this->logger->getChannel()) !== strtolower($channel)) {
-						$this->logger->setChannel($channel);
-						$setLogger = true;
+						if (method_exists($this->logger, 'setChannel')) {
+							$this->logger->setChannel($channel);
+							$setLogger = true;
+						}
 					}
 				}
 				if ($username) {
 					$currentUsername = $this->logger->getTraceId() !== '' ? strtolower($this->logger->getTraceId()) : '';
 					if ($currentUsername !== strtolower($username)) {
-						$this->logger->setUsername($username);
+						if (method_exists($this->logger, 'setUsername')) {
+							$this->logger->setUsername($username);
+						}
 						$setLogger = true;
 					}
 				}

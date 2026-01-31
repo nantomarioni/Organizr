@@ -22,6 +22,7 @@
     "peppeocchi/php-cron-scheduler": "^4.0",
     "simshaun/recurr": "^5.0",
     "stripe/stripe-php": "^7.116",
-    "ramsey/uuid": "^4.2"
+    "ramsey/uuid": "^4.2",
+    "symfony/yaml": "^5.0"
   }
 }

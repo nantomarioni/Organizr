@@ -47,5 +47,9 @@ echo "Setting permissions..."
 chown -R www-data:www-data /config
 chown -R www-data:www-data /var/www/html
 
+# Execute Declarative Config
+echo "Running Declarative Config..."
+php /root/declarative-config.php || echo "Declarative config failed!"
+
 # Execute the passed command
 exec "$@"
