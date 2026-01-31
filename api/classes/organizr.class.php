@@ -3755,7 +3755,7 @@ class Organizr
 
 						// Find all internal groups to get IDs
 						$allGroupsResponse = $this->getAllGroups();
-						$allGroups = $allGroupsResponse['groups'] ?? [];
+						$allGroups = $allGroupsResponse['groups'] ?? $allGroupsResponse ?? [];
 						$groupNameIdMap = [];
 						foreach ($allGroups as $g) {
 							$groupNameIdMap[strtolower($g['group'])] = $g['group_id'];
@@ -6932,8 +6932,10 @@ class Organizr
 			array(
 				'function' => 'query',
 				'query' => array(
-					'UPDATE users SET group_id = ?, [group] = ? WHERE id = ?',
-					[$groupId, $groupName, $id]
+					'UPDATE users SET',
+					['group_id' => $groupId, 'group' => $groupName],
+					'WHERE id = ?',
+					$id
 				)
 			)
 		];
