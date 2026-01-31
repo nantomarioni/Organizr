@@ -73,8 +73,7 @@ if (isset($config['settings'])) {
             'enabled' => 'authProxyEnabled',
             'headerName' => 'authProxyHeaderName',
             'headerNameEmail' => 'authProxyHeaderNameEmail',
-            'headerNameGroups' => 'authProxyHeaderNameGroups', // Note: Check if key exists in Organizr (might be custom)
-            'headerNameGroup' => 'authProxyHeaderNameGroup',
+            'headerNameGroups' => 'authProxyHeaderNameGroup',
             'groupMapping' => 'authProxyGroupMapping',
             'whitelist' => 'authProxyWhitelist',
             'overrideLogout' => 'authProxyOverrideLogout',
