@@ -154,20 +154,33 @@ if (isset($config['groups']) && is_array($config['groups'])) {
 // 4. Create Tabs
 if (isset($config['tabs']) && is_array($config['tabs'])) {
     echo "Configuring tabs...\n";
-    $tabs = $Organizr->getAllTabs();
+    $allTabsData = $Organizr->getAllTabs();
+    $existingTabs = $allTabsData['tabs'] ?? [];
+    
     foreach ($config['tabs'] as $tabData) {
         $exists = false;
-        foreach ($tabs as $tab) {
-            if ($tab['name'] === $tabData['name'] || $tab['url'] === $tabData['url']) {
+        $existingTabId = null;
+        
+        foreach ($existingTabs as $tab) {
+            if ($tab['name'] === $tabData['name']) {
                 $exists = true;
-                // Update logic could go here
-                echo "Tab " . $tabData['name'] . " already exists. Updating...\n";
-                $Organizr->updateTab($tab['id'], $tabData); 
+                $existingTabId = $tab['id'];
                 break;
             }
         }
 
-        if (!$exists) {
+        if ($exists) {
+            echo "Tab " . $tabData['name'] . " already exists. Updating...\n";
+            if ($Organizr->updateTab($existingTabId, $tabData)) {
+                echo "Tab updated.\n";
+            } else {
+                if (isset($GLOBALS['api']['response']['message'])) {
+                    echo "Failed to update tab: " . $GLOBALS['api']['response']['message'] . "\n";
+                } else {
+                    echo "Failed to update tab (Unknown error).\n";
+                }
+            }
+        } else {
             echo "Adding tab " . $tabData['name'] . "...\n";
             // Map keys if necessary, or pass array directly if it matches
             // API expects: name, url, image, type, etc.
