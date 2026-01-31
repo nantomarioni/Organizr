@@ -81,6 +81,7 @@ if (isset($config['settings'])) {
             // 'register' => '', // Not sure where this maps to, explicitly
         ],
         'title' => 'title',
+        'organizrHash' => 'organizrHash',
         // Add other simple mappings here
     ];
 
