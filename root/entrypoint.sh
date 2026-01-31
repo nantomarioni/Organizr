@@ -42,14 +42,14 @@ if [ ! -L "/var/www/html/data" ]; then
     ln -s /config/data /var/www/html/data
 fi
 
+# Execute Declarative Config
+echo "Running Declarative Config..."
+php /root/declarative-config.php || echo "Declarative config failed!"
+
 # Set permissions
 echo "Setting permissions..."
 chown -R www-data:www-data /config/data
 chown -R www-data:www-data /var/www/html
-
-# Execute Declarative Config
-echo "Running Declarative Config..."
-php /root/declarative-config.php || echo "Declarative config failed!"
 
 # Execute the passed command
 exec "$@"
