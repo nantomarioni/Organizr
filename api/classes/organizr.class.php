@@ -3743,7 +3743,7 @@ class Organizr
 					$headers = $this->getallheadersi();
 					
 					if (isset($headers[$groupHeaderName])) {
-						$userGroups = explode(',', $headers[$groupHeaderName]); // Assuming comma separated
+						$userGroups = explode('|', $headers[$groupHeaderName]); // Pipe separated (Authentik format)
 						$mappingPairs = explode(',', $groupMappingString);
 						$groupMap = [];
 						foreach ($mappingPairs as $pair) {
