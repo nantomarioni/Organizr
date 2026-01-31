@@ -2471,6 +2471,8 @@ class Organizr
 				$this->settingsOption('input', 'authProxyWhitelist', ['label' => 'Auth Proxy Whitelist', 'placeholder' => 'i.e. 10.0.0.0/24 or 10.0.0.20', 'help' => 'IPv4 only at the moment - This must be set to work, will accept subnet or IP address']),
 				$this->settingsOption('input', 'authProxyHeaderName', ['label' => 'Auth Proxy Header Name', 'placeholder' => 'i.e. X-Forwarded-User', 'help' => 'Please choose a unique value for added security']),
 				$this->settingsOption('input', 'authProxyHeaderNameEmail', ['label' => 'Auth Proxy Header Name for Email', 'placeholder' => 'i.e. X-Forwarded-Email', 'help' => 'Please choose a unique value for added security']),
+				$this->settingsOption('input', 'authProxyHeaderNameGroup', ['label' => 'Auth Proxy Header Name for Group', 'placeholder' => 'i.e. X-Forwarded-Groups', 'help' => 'Header that contains group information']),
+				$this->settingsOption('input', 'authProxyGroupMapping', ['label' => 'Auth Proxy Group Mapping', 'placeholder' => 'ExternalGroup:InternalGroup,ExternalGroup2:InternalGroup2', 'help' => 'Map external groups to internal Organizr groups. Comma separated.']),
 				$this->settingsOption('switch', 'authProxyOverrideLogout', ['label' => 'Override Logout', 'help' => 'Enable option to set custom Logout URL for Auth Proxy']),
 				$this->settingsOption('input', 'authProxyLogoutURL', ['label' => 'Logout URL', 'help' => 'Logout URL to redirect user for Auth Proxy']),
 			],
@@ -3733,6 +3735,51 @@ class Organizr
 				$username = ($authProxy) ? $headerForLogin : $username;
 				$password = ($password == null) ? $this->random_ascii_string(10) : $password;
 				$addEmailToAuthProxy = ($authProxy && $emailHeader) ? ['email' => $emailHeader] : true;
+				// Auth Proxy Group Mapping
+				$mappedGroupId = null;
+				if ($authProxy && ($this->config['authProxyHeaderNameGroup'] ?? false) && ($this->config['authProxyGroupMapping'] ?? false)) {
+					$groupHeaderName = strtolower($this->config['authProxyHeaderNameGroup']);
+					$groupMappingString = $this->config['authProxyGroupMapping'];
+					$headers = $this->getallheadersi();
+					
+					if (isset($headers[$groupHeaderName])) {
+						$userGroups = explode(',', $headers[$groupHeaderName]); // Assuming comma separated
+						$mappingPairs = explode(',', $groupMappingString);
+						$groupMap = [];
+						foreach ($mappingPairs as $pair) {
+							$parts = explode(':', $pair);
+							if (count($parts) === 2) {
+								$groupMap[trim($parts[0])] = trim($parts[1]);
+							}
+						}
+
+						// Find all internal groups to get IDs
+						$allGroupsResponse = $this->getAllGroups();
+						$allGroups = $allGroupsResponse['groups'] ?? [];
+						$groupNameIdMap = [];
+						foreach ($allGroups as $g) {
+							$groupNameIdMap[strtolower($g['group'])] = $g['group_id'];
+						}
+
+						$foundGroupIds = [];
+						foreach ($userGroups as $uGroup) {
+							$uGroup = trim($uGroup);
+							if (isset($groupMap[$uGroup])) {
+								$targetInternalGroup = strtolower($groupMap[$uGroup]);
+								if (isset($groupNameIdMap[$targetInternalGroup])) {
+									$foundGroupIds[] = $groupNameIdMap[$targetInternalGroup];
+								}
+							}
+						}
+
+						if (!empty($foundGroupIds)) {
+							// Pick the lowest ID (highest privilege)
+							sort($foundGroupIds);
+							$mappedGroupId = $foundGroupIds[0];
+							$this->logger->info('Auth Proxy Group Mapping matched group ID: ' . $mappedGroupId);
+						}
+					}
+				}
 				if ($authProxy) {
 					$this->logger->info('User has been verified using Auth Proxy');
 					$bypassTFA = true;
@@ -3823,6 +3870,15 @@ class Organizr
 					$this->setLoggerChannel('Authentication', $username);
 					$this->logger->info('User Password updated from backend');
 				}
+				// Update Group if mapped from Auth Proxy
+				if (isset($mappedGroupId) && $mappedGroupId !== null) {
+					if ($result['group_id'] != $mappedGroupId) {
+						if ($this->updateUserGroup($mappedGroupId, $result['id'])) {
+							$this->setLoggerChannel('Authentication', $username);
+							$this->logger->info('User Group updated from Auth Proxy mapping to ID: ' . $mappedGroupId);
+						}
+					}
+				}
 				if ($token !== '') {
 					if ($token !== $result['plex_token']) {
 						$this->updateUserPlexToken($token, $result['id']);
@@ -3886,7 +3942,7 @@ class Organizr
 				// Create User
 				$this->setLoggerChannel('Authentication', (is_array($authSuccess) && isset($authSuccess['username']) ? $authSuccess['username'] : $username));
 				$this->logger->debug('Starting Registration function');
-				return $this->authRegister((is_array($authSuccess) && isset($authSuccess['username']) ? $authSuccess['username'] : $username), $password, (is_array($authSuccess) && isset($authSuccess['email']) ? $authSuccess['email'] : ''), $token);
+				return $this->authRegister((is_array($authSuccess) && isset($authSuccess['username']) ? $authSuccess['username'] : $username), $password, (is_array($authSuccess) && isset($authSuccess['email']) ? $authSuccess['email'] : ''), $token, $mappedGroupId ?? null);
 			}
 		} else {
 			// authentication failed
@@ -4009,7 +4065,7 @@ class Organizr
 		}
 	}
 
-	public function authRegister($username, $password, $email, $token = null)
+	public function authRegister($username, $password, $email, $token = null, $group_id = null)
 	{
 		$this->setLoggerChannel('Authentication', $username);
 		if ($this->config['authBackend'] !== '') {
@@ -4021,6 +4077,13 @@ class Organizr
 		}
 		if ($this->createUser($username, $password, $email)) {
 			$this->logger->info('A User has registered');
+			if ($group_id !== null) {
+				$newUser = $this->getUserByUsernameAndEmail($username, $email);
+				if ($newUser) {
+					$this->updateUserGroup($group_id, $newUser['id']);
+					$this->logger->info('User Group set from Auth Proxy mapping to ID: ' . $group_id);
+				}
+			}
 			if ($this->config['PHPMAILER-enabled'] && $email !== '') {
 				$PhpMailer = new PhpMailer();
 				$emailTemplate = array(
@@ -6856,6 +6919,25 @@ class Organizr
 			$this->logger->warning('An error occurred');
 			return false;
 		}
+	}
+
+	public function updateUserGroup($groupId, $id)
+	{
+		$group = $this->getGroupByGroupId($groupId);
+		if (!isset($group['group'])) {
+			return false;
+		}
+		$groupName = $group['group'];
+		$response = [
+			array(
+				'function' => 'query',
+				'query' => array(
+					'UPDATE users SET group_id = ?, [group] = ? WHERE id = ?',
+					[$groupId, $groupName, $id]
+				)
+			)
+		];
+		return $this->processQueries($response);
 	}
 
 	public function createUser($username, $password, $email = null)
