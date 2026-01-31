@@ -44,7 +44,7 @@ fi
 
 # Set permissions
 echo "Setting permissions..."
-chown -R www-data:www-data /config
+chown -R www-data:www-data /config/data
 chown -R www-data:www-data /var/www/html
 
 # Execute Declarative Config
