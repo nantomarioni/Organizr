@@ -31,9 +31,6 @@ packaging code in `root/` + `Dockerfile`; no drive-by reformatting of upstream
 files. Upstreamable fixes base on `v2-develop` (`CONTRIBUTING.md`).
 
 > `README.md` is upstream's and refers to upstream's docker image, not this fork.
-> Tracked root files `test_debug.php`, `test_jellystat_api.html`, `server.log`,
-> `poster_updates.js`, `debug_jellystat_metadata.php` are debugging leftovers
-> that were committed by mistake — not part of the app; candidates for removal.
 
 ## How to run things
 

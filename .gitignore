@@ -192,3 +192,6 @@ api/pages/custom/*.php
 /plugins/images/cache/tautulli-samsung.svg
 /plugins/images/cache/tautulli-chrome.svg
 .vscode
+
+# local dev-server output
+server.log
