@@ -17,6 +17,7 @@ class Organizr
 	use NetDataFunctions;
 	use NormalFunctions;
 	use OAuthFunctions;
+	use OIDCFunctions;
 	use OptionsFunction;
 	use OrganizrFunctions;
 	use PluginFunctions;
@@ -72,7 +73,7 @@ class Organizr
 
 	// ===================================
 	// Organizr Version
-	public $version = '2.1.3180';
+	public $version = '2.1.5000';
 	// ===================================
 	// Quick php Version check
 	public $minimumPHP = '7.4';
@@ -1670,6 +1671,34 @@ class Organizr
 		return $this->processQueries($response);
 	}
 
+	public function getUserByUsername($username)
+	{
+		$response = [
+			array(
+				'function' => 'fetch',
+				'query' => array(
+					'SELECT * FROM users WHERE username = ? COLLATE NOCASE',
+					$username
+				)
+			)
+		];
+		return $this->processQueries($response);
+	}
+
+	public function updateUserById($id, $updates)
+	{
+		if (empty($updates) || !$id) {
+			return false;
+		}
+		try {
+			$this->db->query('UPDATE [users] SET', $updates, 'WHERE id = ?', $id);
+			return true;
+		} catch (Exception $e) {
+			$this->setLoggerChannel('User')->error('Failed to update user: ' . $e->getMessage());
+			return false;
+		}
+	}
+
 	protected function invalidToken($token)
 	{
 		if (isset($_COOKIE[$this->cookieName])) {
@@ -2626,6 +2655,71 @@ class Organizr
 				$this->settingsOption('password', 'komgaFallbackPassword', ['label' => 'Komga Fallback Password']),
 				$this->settingsOption('password', 'komgaSSOMasterPassword', ['label' => 'Komga Master Password', 'help' => 'Sets master password if using oAuth backend - This will set the password on the login form for logins using oAuth where no password is supplied.']),
 			],
+			'OIDC Global' => [
+				$this->settingsOption('enable', 'oidcEnabled', ['label' => 'Enable OIDC Authentication']),
+				$this->settingsOption('switch', 'oidcAutoRedirect', ['label' => 'Auto-Redirect to OIDC', 'help' => 'Automatically redirect to OIDC provider on login page (add #noredirect to URL to bypass)']),
+				$this->settingsOption('select', 'oidcAutoRedirectProvider', ['label' => 'Auto-Redirect Provider', 'options' => [
+					['name' => 'None', 'value' => ''],
+					['name' => 'Authentik', 'value' => 'authentik'],
+					['name' => 'Keycloak', 'value' => 'keycloak'],
+					['name' => 'PocketID', 'value' => 'pocketid'],
+					['name' => 'Zitadel', 'value' => 'zitadel'],
+				]]),
+				$this->settingsOption('url', 'oidcAutoRedirectLogoutUrl', ['label' => 'Custom Logout URL', 'help' => 'Redirect to this URL after logout (e.g., OIDC provider logout endpoint)']),
+				$this->settingsOption('blank'),
+				$this->settingsOption('switch', 'oidcAutoCreateUsers', ['label' => 'Auto-Create Users', 'help' => 'Automatically create users on first OIDC login']),
+				$this->settingsOption('switch', 'oidcLinkExistingUsers', ['label' => 'Link Existing Users', 'help' => 'Link OIDC accounts to existing Organizr users by email']),
+				$this->settingsOption('switch', 'oidcUpdateGroupsOnLogin', ['label' => 'Update Groups on Login', 'help' => 'Re-sync group membership from OIDC on each login']),
+				$this->settingsOption('select', 'oidcDefaultGroupId', ['label' => 'Default Group', 'help' => 'Group assigned to new OIDC users if no mapping matches', 'options' => $this->groupSelect()]),
+				$this->settingsOption('blank'),
+				$this->settingsOption('input', 'oidcGroupClaimName', ['label' => 'Group Claim Name', 'placeholder' => 'groups', 'help' => 'JWT claim containing user groups']),
+				$this->settingsOption('select', 'oidcGroupMappingMode', ['label' => 'Group Mapping Mode', 'help' => 'How to handle multiple matching groups', 'options' => [
+					['name' => 'First Match', 'value' => 'first'],
+					['name' => 'Highest Privilege (lowest ID)', 'value' => 'highest_privilege'],
+					['name' => 'Lowest Privilege (highest ID)', 'value' => 'lowest_privilege'],
+				]]),
+				$this->settingsOption('textbox', 'oidcGroupMappings', ['label' => 'Group Mappings (JSON)', 'help' => 'Map OIDC groups to Organizr group IDs. Example: {"oidc-admins": 0, "oidc-users": 3}']),
+			],
+			'OIDC: Authentik' => [
+				$this->settingsOption('enable', 'oidcAuthentikEnabled', ['label' => 'Enable Authentik']),
+				$this->settingsOption('input', 'oidcAuthentikName', ['label' => 'Display Name', 'placeholder' => 'Authentik']),
+				$this->settingsOption('url', 'oidcAuthentikDiscoveryUrl', ['label' => 'Discovery URL', 'help' => 'e.g., https://authentik.example.com/application/o/organizr/.well-known/openid-configuration']),
+				$this->settingsOption('input', 'oidcAuthentikClientId', ['label' => 'Client ID']),
+				$this->settingsOption('password', 'oidcAuthentikClientSecret', ['label' => 'Client Secret']),
+				$this->settingsOption('input', 'oidcAuthentikScopes', ['label' => 'Scopes', 'placeholder' => 'openid,profile,email,groups']),
+				$this->settingsOption('input', 'oidcAuthentikGroupClaim', ['label' => 'Group Claim Override', 'placeholder' => 'groups', 'help' => 'Leave empty to use global setting']),
+				$this->settingsOption('button', 'testOIDCAuthentik', ['label' => 'Test Connection', 'icon' => 'fa fa-plug', 'text' => 'Test', 'attr' => 'onclick="testOIDCConnection(\'authentik\')"']),
+			],
+			'OIDC: Keycloak' => [
+				$this->settingsOption('enable', 'oidcKeycloakEnabled', ['label' => 'Enable Keycloak']),
+				$this->settingsOption('input', 'oidcKeycloakName', ['label' => 'Display Name', 'placeholder' => 'Keycloak']),
+				$this->settingsOption('url', 'oidcKeycloakDiscoveryUrl', ['label' => 'Discovery URL', 'help' => 'e.g., https://keycloak.example.com/realms/master/.well-known/openid-configuration']),
+				$this->settingsOption('input', 'oidcKeycloakClientId', ['label' => 'Client ID']),
+				$this->settingsOption('password', 'oidcKeycloakClientSecret', ['label' => 'Client Secret']),
+				$this->settingsOption('input', 'oidcKeycloakScopes', ['label' => 'Scopes', 'placeholder' => 'openid,profile,email']),
+				$this->settingsOption('input', 'oidcKeycloakGroupClaim', ['label' => 'Group Claim Override', 'placeholder' => 'groups', 'help' => 'Leave empty to use global setting']),
+				$this->settingsOption('button', 'testOIDCKeycloak', ['label' => 'Test Connection', 'icon' => 'fa fa-plug', 'text' => 'Test', 'attr' => 'onclick="testOIDCConnection(\'keycloak\')"']),
+			],
+			'OIDC: PocketID' => [
+				$this->settingsOption('enable', 'oidcPocketidEnabled', ['label' => 'Enable PocketID']),
+				$this->settingsOption('input', 'oidcPocketidName', ['label' => 'Display Name', 'placeholder' => 'PocketID']),
+				$this->settingsOption('url', 'oidcPocketidDiscoveryUrl', ['label' => 'Discovery URL', 'help' => 'e.g., https://pocketid.example.com/.well-known/openid-configuration']),
+				$this->settingsOption('input', 'oidcPocketidClientId', ['label' => 'Client ID']),
+				$this->settingsOption('password', 'oidcPocketidClientSecret', ['label' => 'Client Secret']),
+				$this->settingsOption('input', 'oidcPocketidScopes', ['label' => 'Scopes', 'placeholder' => 'openid,profile,email']),
+				$this->settingsOption('input', 'oidcPocketidGroupClaim', ['label' => 'Group Claim Override', 'placeholder' => 'groups', 'help' => 'Leave empty to use global setting']),
+				$this->settingsOption('button', 'testOIDCPocketid', ['label' => 'Test Connection', 'icon' => 'fa fa-plug', 'text' => 'Test', 'attr' => 'onclick="testOIDCConnection(\'pocketid\')"']),
+			],
+			'OIDC: Zitadel' => [
+				$this->settingsOption('enable', 'oidcZitadelEnabled', ['label' => 'Enable Zitadel']),
+				$this->settingsOption('input', 'oidcZitadelName', ['label' => 'Display Name', 'placeholder' => 'Zitadel']),
+				$this->settingsOption('url', 'oidcZitadelDiscoveryUrl', ['label' => 'Discovery URL', 'help' => 'e.g., https://zitadel.example.com/.well-known/openid-configuration']),
+				$this->settingsOption('input', 'oidcZitadelClientId', ['label' => 'Client ID']),
+				$this->settingsOption('password', 'oidcZitadelClientSecret', ['label' => 'Client Secret']),
+				$this->settingsOption('input', 'oidcZitadelScopes', ['label' => 'Scopes', 'placeholder' => 'openid,profile,email,urn:zitadel:iam:org:project:roles']),
+				$this->settingsOption('input', 'oidcZitadelGroupClaim', ['label' => 'Group Claim Override', 'placeholder' => 'urn:zitadel:iam:org:project:roles', 'help' => 'Zitadel uses a special claim format for roles']),
+				$this->settingsOption('button', 'testOIDCZitadel', ['label' => 'Test Connection', 'icon' => 'fa fa-plug', 'text' => 'Test', 'attr' => 'onclick="testOIDCConnection(\'zitadel\')"']),
+			],
 		];
 	}
 
@@ -2921,6 +3015,10 @@ class Organizr
 
 	public function wizardConfig($array)
 	{
+		if($this->hasConfig() && $this->hasDB()) {
+			$this->setAPIResponse('error', 'Endpoint disabled as database already exists', 401);
+			return false;
+		}
 		$array['driver'] = $array['driver'] ?? 'sqlite3';
 		$driver = $this->formatDatabaseDriver($array['driver']);
 		$dbName = $array['dbName'] ?? null;
@@ -3989,11 +4087,14 @@ class Organizr
 			$this->setAPIResponse('error', 'Email was not supplied', 422);
 			return false;
 		}
+		if (!$this->config['PHPMAILER-enabled']) {
+			$this->setAPIResponse('error', 'Email functionality is not enabled', 422);
+			return false;
+		}
 		$newPassword = $this->randString(10);
 		$isUser = $this->getUserByEmail($email);
 		if ($isUser) {
 			$this->updateUserPassword($newPassword, $isUser['id']);
-			$this->setAPIResponse('success', 'User password has been reset', 200);
 			$this->setLoggerChannel('User Management');
 			$this->logger->info('User Management Function - User: ' . $isUser['username'] . '\'s password was reset');
 			if ($this->config['PHPMAILER-enabled']) {
@@ -4014,13 +4115,11 @@ class Organizr
 					'body' => $PhpMailer->_phpMailerPluginBuildEmail($emailTemplate),
 				);
 				$PhpMailer->_phpMailerPluginSendEmail($sendEmail);
-				$this->setAPIResponse('success', 'User password has been reset and email has been sent', 200);
 			}
-			return true;
-		} else {
-			$this->setAPIResponse('error', 'User not found', 404);
-			return false;
 		}
+		// Always return the same message to prevent account enumeration
+		$this->setAPIResponse('success', 'If the email exists in our system, a password reset has been sent to the user', 200);
+		return true;
 	}
 
 	public function register($array)
@@ -7446,6 +7545,94 @@ public function youtubeSearch($query)
 		}
 	}
 
+	/**
+	 * Validate that URL is external and not a local/internal resource
+	 * Prevents SSRF attacks by blocking local file access and private IP ranges
+	 * 
+	 * @param string $url The URL to validate
+	 * @return bool True if URL is external and safe, false otherwise
+	 */
+	private function isExternalURL($url)
+	{
+		// Parse the URL
+		$parsedUrl = parse_url($url);
+		
+		if (!$parsedUrl || !isset($parsedUrl['scheme']) || !isset($parsedUrl['host'])) {
+			return false;
+		}
+		
+		// Block file:// and other non-http(s) schemes
+		$scheme = strtolower($parsedUrl['scheme']);
+		if (!in_array($scheme, ['http', 'https'])) {
+			return false;
+		}
+		
+		$host = strtolower($parsedUrl['host']);
+		
+		// Block localhost variations
+		$localhostPatterns = [
+			'localhost',
+			'127.0.0.1',
+			'0.0.0.0',
+			'::1',
+			'0:0:0:0:0:0:0:1'
+		];
+		
+		if (in_array($host, $localhostPatterns)) {
+			return false;
+		}
+		
+		// Resolve hostname to IP if it's not already an IP
+		$ip = $host;
+		if (!filter_var($host, FILTER_VALIDATE_IP)) {
+			$ip = gethostbyname($host);
+			// If gethostbyname fails, it returns the hostname unchanged
+			if ($ip === $host) {
+				// Could not resolve - for security, block unresolvable hosts
+				return false;
+			}
+		}
+		
+		// Block private IP ranges (IPv4)
+		if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+			// Convert IP to long for range checking
+			$ipLong = ip2long($ip);
+			
+			// Private IP ranges:
+			// 10.0.0.0 - 10.255.255.255
+			// 172.16.0.0 - 172.31.255.255
+			// 192.168.0.0 - 192.168.255.255
+			// 169.254.0.0 - 169.254.255.255 (link-local)
+			// 127.0.0.0 - 127.255.255.255 (loopback)
+			$privateRanges = [
+				['10.0.0.0', '10.255.255.255'],
+				['172.16.0.0', '172.31.255.255'],
+				['192.168.0.0', '192.168.255.255'],
+				['169.254.0.0', '169.254.255.255'],
+				['127.0.0.0', '127.255.255.255']
+			];
+			
+			foreach ($privateRanges as $range) {
+				$rangeStart = ip2long($range[0]);
+				$rangeEnd = ip2long($range[1]);
+				if ($ipLong >= $rangeStart && $ipLong <= $rangeEnd) {
+					return false;
+				}
+			}
+		}
+		
+		// Block private/local IPv6 addresses
+		if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+			// Block IPv6 loopback (::1) and link-local (fe80::/10)
+			if (strpos($ip, '::1') === 0 || strpos($ip, 'fe80:') === 0 || strpos($ip, 'fc00:') === 0 || strpos($ip, 'fd00:') === 0) {
+				return false;
+			}
+		}
+		
+		// URL passed all checks - it's external
+		return true;
+	}
+
 	public function scrapePage($array)
 	{
 		try {
@@ -7456,6 +7643,11 @@ public function youtubeSearch($query)
 				return false;
 			}
 			$url = $this->qualifyURL($url);
+			// Security: Only allow external URLs, block local/internal resources
+			if (!$this->isExternalURL($url)) {
+				$this->setAPIResponse('error', 'Access to local or internal URLs is not allowed', 403);
+				return false;
+			}
 			$data = array(
 				'full_url' => $url,
 				'drill_url' => $this->qualifyURL($url, true)
